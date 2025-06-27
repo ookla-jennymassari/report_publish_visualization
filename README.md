@@ -36,7 +36,7 @@ Wave 4:
 Wave 5:
 - Automate the email to be sent for each new market in report publish
 
-Wave 5: 
+Wave 6: 
 
 - Create a set up description in README
 

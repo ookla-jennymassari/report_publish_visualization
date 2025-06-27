@@ -3,6 +3,7 @@ import os
 import pandas as pd
 import smtplib
 
+from datetime import date
 from dotenv import load_dotenv
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -59,6 +60,9 @@ df_market_status = get_market_status()
 
 def process_sent_emails(df_market_status):
     global sent_emails_log
+    present = date.today()
+    email_counter = 0
+    
     for index, row in df_market_status.iterrows():
         csid = str(row['collection_set_id'])  
         collection_set_name = row['collection_area_name']
@@ -66,10 +70,12 @@ def process_sent_emails(df_market_status):
 
         print(f"Processing market: CSID: {csid}, Collection Set Name: {collection_set_name}")
 
-        if csid not in sent_emails_log:  
-            send_email(csid, collection_set_name, url_market_name)
-            sent_emails_log[csid] = collection_set_name  
-            save_log_to_json()  
+        if csid not in sent_emails_log: 
+            if (present >= row['scout_end_date']): 
+                send_email(csid, collection_set_name, url_market_name)
+                sent_emails_log[csid] = collection_set_name
+                email_counter += 1  
+                save_log_to_json()  
         else:
             print(f"Email already sent for CSID: {csid}, Collection Set Name: {collection_set_name}.")
 
