@@ -14,68 +14,35 @@ load_dotenv()
 # Market information needed
 period = "2025-1H"
 
-# # Filepath for storing the markets
-# SENT_EMAILS_LOG_FILE = "sent_emails_log.json"
-
-# ALL_MARKETS_FILE = "all_markets.json"
-# REMAINING_MARKETS_FILE = "remaining_markets.json"
-
-# # Initialize the sent_emails_log
-# if os.path.exists(SENT_EMAILS_LOG_FILE):
-#     try:
-#         with open(SENT_EMAILS_LOG_FILE, "r") as file:
-#             sent_emails_log = json.load(file)
-#         print(f"Loaded sent emails log from {SENT_EMAILS_LOG_FILE}")
-#     except json.JSONDecodeError:
-#         print(f"Warning: {SENT_EMAILS_LOG_FILE} is empty or invalid. Initializing an empty log.")
-#         sent_emails_log = {}
-#     except Exception as e:
-#         print(f"Failed to load sent emails log: {e}")
-#         sent_emails_log = {}
-# else:
-#     print(f"No existing log file found at {SENT_EMAILS_LOG_FILE}. Starting with an empty log.")
-#     sent_emails_log = {}
+# Filepath for storing the markets
+SENT_EMAILS_LOG_FILE = "sent_emails_log.json"
 
 
-# def save_log_to_json():
-#     try:
-#         with open(SENT_EMAILS_LOG_FILE, "w") as file:
-#             json.dump(sent_emails_log, file, indent=4)
-#         print(f"Log saved to {SENT_EMAILS_LOG_FILE}")
-#     except Exception as e:
-#         print(f"Failed to save log: {e}")
-
-# Filepaths for storing the markets
-ALL_MARKETS_FILE = "all_markets.json"
-REMAINING_MARKETS_FILE = "remaining_markets.json"
-
-def save_json(data, filepath):
-    """
-    Save data to a JSON file.
-    """
+# Initialize the sent_emails_log
+if os.path.exists(SENT_EMAILS_LOG_FILE):
     try:
-        with open(filepath, "w") as file:
-            json.dump(data, file, indent=4)
-        print(f"Data saved to {filepath}")
+        with open(SENT_EMAILS_LOG_FILE, "r") as file:
+            sent_emails_log = json.load(file)
+        print(f"Loaded sent emails log from {SENT_EMAILS_LOG_FILE}")
+    except json.JSONDecodeError:
+        print(f"Warning: {SENT_EMAILS_LOG_FILE} is empty or invalid. Initializing an empty log.")
+        sent_emails_log = {}
     except Exception as e:
-        print(f"Failed to save data to {filepath}: {e}")
+        print(f"Failed to load sent emails log: {e}")
+        sent_emails_log = {}
+else:
+    print(f"No existing log file found at {SENT_EMAILS_LOG_FILE}. Starting with an empty log.")
+    sent_emails_log = {}
 
-def load_json(filepath):
-    """
-    Load data from a JSON file.
-    """
-    if os.path.exists(filepath):
-        try:
-            with open(filepath, "r") as file:
-                return json.load(file)
-        except json.JSONDecodeError:
-            print(f"Warning: {filepath} is empty or invalid. Initializing an empty dictionary.")
-            return {}
-        except Exception as e:
-            print(f"Failed to load data from {filepath}: {e}")
-            return {}
-    else:
-        return {}
+
+def save_log_to_json():
+    try:
+        with open(SENT_EMAILS_LOG_FILE, "w") as file:
+            json.dump(sent_emails_log, file, indent=4)
+        print(f"Log saved to {SENT_EMAILS_LOG_FILE}")
+    except Exception as e:
+        print(f"Failed to save log: {e}")
+
     
 def run_sql_query(sql_query):
     return pd.read_sql_query(sql_query, con=os.getenv('RSR_SVC_CONN')) 
@@ -94,60 +61,25 @@ def get_market_status():
 
 df_market_status = get_market_status()
 
-def initialize_all_markets(df_market_status):
-    """
-    Create the initial JSON file with all markets if it doesn't exist.
-    """
-    if not os.path.exists(ALL_MARKETS_FILE):
-        all_markets = {str(row['collection_set_id']): row['collection_area'] for _, row in df_market_status.iterrows()}
-        save_json(all_markets, ALL_MARKETS_FILE)
-
-    if not os.path.exists(REMAINING_MARKETS_FILE):
-        remaining_markets = load_json(ALL_MARKETS_FILE)  # Copy all markets to remaining_markets.json
-        save_json(remaining_markets, REMAINING_MARKETS_FILE)
-
-# def process_sent_emails(df_market_status):
-#     global sent_emails_log
-#     present = datetime.combine(date.today(), datetime.min.time())
-#     email_counter = 0
-    
-#     for index, row in df_market_status.iterrows():
-#         csid = str(row['collection_set_id'])  
-#         collection_set_name = row['collection_area']
-#         url_market_name = collection_set_name.replace(",", "-").replace(" ", "").lower()
-
-#         print(f"Processing market: CSID: {csid}, Collection Set Name: {collection_set_name}")
-
-#         if csid not in sent_emails_log: 
-#             if (present >= row['last_status_time']): 
-#                 send_email(csid, collection_set_name, url_market_name)
-#                 sent_emails_log[csid] = collection_set_name
-#                 email_counter += 1  
-#                 save_log_to_json()  
-#         else:
-#             print(f"Email already sent for CSID: {csid}, Collection Set Name: {collection_set_name}.")
 
 def process_sent_emails(df_market_status):
-    """
-    Process the DataFrame to send emails and update the remaining markets JSON file.
-    """
-    remaining_markets = load_json(REMAINING_MARKETS_FILE)
+    global sent_emails_log
     present = datetime.combine(date.today(), datetime.min.time())
     email_counter = 0
-
+    
     for index, row in df_market_status.iterrows():
-        csid = str(row['collection_set_id'])
+        csid = str(row['collection_set_id'])  
         collection_set_name = row['collection_area']
         url_market_name = collection_set_name.replace(",", "-").replace(" ", "").lower()
 
         print(f"Processing market: CSID: {csid}, Collection Set Name: {collection_set_name}")
 
-        if csid in remaining_markets:  # Check if the market is still in remaining_markets.json
-            if present >= row['last_status_time']:
+        if csid not in sent_emails_log: 
+            if (present >= row['last_status_time']): 
                 send_email(csid, collection_set_name, url_market_name)
-                del remaining_markets[csid]  # Remove the market from remaining_markets.json
-                save_json(remaining_markets, REMAINING_MARKETS_FILE)  # Save the updated remaining markets
-                email_counter += 1
+                sent_emails_log[csid] = collection_set_name
+                email_counter += 1  
+                save_log_to_json()  
         else:
             print(f"Email already sent for CSID: {csid}, Collection Set Name: {collection_set_name}.")
 
@@ -225,5 +157,4 @@ def send_email(csid, collection_set_name, url_market_name):
         print(f"Failed to send email: {e}")
 
 if __name__ == "__main__":
-    initialize_all_markets(df_market_status)
     process_sent_emails(df_market_status)
