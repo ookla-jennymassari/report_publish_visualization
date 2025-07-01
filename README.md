@@ -45,3 +45,27 @@ Information needed on the table:
 - market status
 - period
 - collection set
+
+Questions:
+
+1 - How often do we need to run the script? Based on Tycho once a day.
+
+2 - Do the recipients all get the same report? For US and UL nationan and metro? RootScore Report and Consumer Report
+
+https://ooklanm.atlassian.net/wiki/spaces/BusOps/pages/2952233114/E-mail+Notifications+During+Data+Processing+DL+Groups
+
+3 - Are we retrienving from RSR or S3?
+
+ - I found a data base but it doesn't seem to be updated:
+
+ '''
+select *
+from "rmrs_md_qa"."md_status"
+where current_status = 'Report Publish';
+'''
+
+4- Are we going to automate the whole application and run on schedule? If so why EC2 instead of Lambda and Cloud Watch?
+
+5 - Understand better what Ed meant by not involving another engineerings.
+
+6 - Understand why Linux Operating system over Mac 

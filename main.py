@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import smtplib
 
-from datetime import date
+from datetime import date, datetime
 from dotenv import load_dotenv
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -14,10 +14,10 @@ load_dotenv()
 # Market information needed
 period = "2025-1H"
 
-# Filepath for storing the dictionary
+# Filepath for storing the markets
 SENT_EMAILS_LOG_FILE = "sent_emails_log.json"
 
-# Initialize the sent_emails_log dictionary
+# Initialize the sent_emails_log
 if os.path.exists(SENT_EMAILS_LOG_FILE):
     try:
         with open(SENT_EMAILS_LOG_FILE, "r") as file:
@@ -48,10 +48,11 @@ def run_sql_query(sql_query):
 def get_market_status():
     market_status = f'''
     SELECT *
-    FROM analytic.vi_dqa_assignment_list 
-    WHERE additional_status = 'Report Publish'
-    AND product_period_name = '{period}'
-    AND collection_type_name = 'RSR US Metro';
+    FROM auto.vi_collection_status_reporting
+    WHERE collection_set_status_id = 20
+    AND product_period = '{period}'
+    AND collection_is_reportable = True
+    AND collection_type_id = 1;
     '''
     df_market_status = run_sql_query(market_status)
     return df_market_status
@@ -60,18 +61,18 @@ df_market_status = get_market_status()
 
 def process_sent_emails(df_market_status):
     global sent_emails_log
-    present = date.today()
+    present = datetime.combine(date.today(), datetime.min.time())
     email_counter = 0
     
     for index, row in df_market_status.iterrows():
         csid = str(row['collection_set_id'])  
-        collection_set_name = row['collection_area_name']
+        collection_set_name = row['collection_area']
         url_market_name = collection_set_name.replace(",", "-").replace(" ", "").lower()
 
         print(f"Processing market: CSID: {csid}, Collection Set Name: {collection_set_name}")
 
         if csid not in sent_emails_log: 
-            if (present >= row['scout_end_date']): 
+            if (present >= row['last_status_time']): 
                 send_email(csid, collection_set_name, url_market_name)
                 sent_emails_log[csid] = collection_set_name
                 email_counter += 1  
