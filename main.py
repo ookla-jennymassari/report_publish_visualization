@@ -8,8 +8,10 @@ from dotenv import load_dotenv
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from jinja2 import Template
+from utils import make_image_market_test
 
 load_dotenv()
+
 
 # Market information needed
 period = "2025-1H"
@@ -87,7 +89,7 @@ def process_sent_emails(df_market_status):
     present = datetime.combine(date.today(), datetime.min.time())
     email_counter = 0
     max_emails_to_send = 2
-
+    
     for index, row in df_market_status.iterrows():
         if email_counter >= max_emails_to_send:
             print("Maximum number of emails sent.")
@@ -96,12 +98,13 @@ def process_sent_emails(df_market_status):
         csid = str(row['collection_set_id'])
         collection_set_name = row['collection_area']
         url_market_name = collection_set_name.replace(",", "-").replace(" ", "").lower()
+        image_test = make_image_market_test()
 
         print(f"Processing market: CSID: {csid}, Collection Set Name: {collection_set_name}")
 
         if csid in remaining_markets:  
             if present >= row['last_status_time']:
-                send_email(csid, collection_set_name, url_market_name)
+                send_email(csid, collection_set_name, url_market_name, image_test)
                 del remaining_markets[csid]  
                 save_json(remaining_markets, REMAINING_MARKETS_FILE)  
                 email_counter += 1
@@ -109,7 +112,7 @@ def process_sent_emails(df_market_status):
             print(f"Email already sent for CSID: {csid}, Collection Set Name: {collection_set_name}.")
 
 
-def send_email(csid, collection_set_name, url_market_name):
+def send_email(csid, collection_set_name, url_market_name, image_test):
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -132,6 +135,10 @@ def send_email(csid, collection_set_name, url_market_name):
             Click here to review market-level details: 
             <a href="https://rootinsights.rootmetrics.com/unitedstates/rsrmetro/market/20251h/{{url_market_name}}/rsr/">Market Details</a><br>
             <br>
+            <br>
+            <p> You can check an image test bellow: </p>
+            <img src="{{image_test}}" alt="Market Test Image" style="width:600px;height:auto;"><br>
+            <br>
             Best Regards,<br>
             Jenny Massari | RootMetrics Intern<br>
             206.376.0884 | D 000.000.0000<br>
@@ -146,6 +153,7 @@ def send_email(csid, collection_set_name, url_market_name):
     rendered_html = template.render(
         collection_set_name=collection_set_name,
         url_market_name=url_market_name,
+        image_test=image_test
     )
 
     # Reload the .env file

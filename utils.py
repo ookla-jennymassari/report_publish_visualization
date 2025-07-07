@@ -8,4 +8,4 @@ def make_image_market_test():
         str: The URL of the image for the market test.
     """
 
-    return f"https://raw.githubusercontent.com/report_publish_visualization/main/report_publish_visualization/images/rootmetrics.jpeg"
+    return f"https://raw.githubusercontent.com/ookla-jennymassari/report_publish_visualization/main/images/rootmetrics.jpeg"
