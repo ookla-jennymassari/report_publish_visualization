@@ -18,6 +18,7 @@ period = "2025-1H"
 ALL_MARKETS_FILE = "all_markets.json"
 REMAINING_MARKETS_FILE = "remaining_markets.json"
 
+
 def save_json(data, filepath):
     """
     Save data to a JSON file.
@@ -91,7 +92,7 @@ def process_sent_emails(df_market_status):
         if email_counter >= max_emails_to_send:
             print("Maximum number of emails sent.")
             break
-        
+
         csid = str(row['collection_set_id'])
         collection_set_name = row['collection_area']
         url_market_name = collection_set_name.replace(",", "-").replace(" ", "").lower()
