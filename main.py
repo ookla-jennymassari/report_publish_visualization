@@ -85,8 +85,13 @@ def process_sent_emails(df_market_status):
     remaining_markets = load_json(REMAINING_MARKETS_FILE)
     present = datetime.combine(date.today(), datetime.min.time())
     email_counter = 0
+    max_emails_to_send = 2
 
     for index, row in df_market_status.iterrows():
+        if email_counter >= max_emails_to_send:
+            print("Maximum number of emails sent.")
+            break
+        
         csid = str(row['collection_set_id'])
         collection_set_name = row['collection_area']
         url_market_name = collection_set_name.replace(",", "-").replace(" ", "").lower()
