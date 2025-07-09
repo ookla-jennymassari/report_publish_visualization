@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import pandas as pd
@@ -53,20 +54,89 @@ def load_json(filepath):
 def run_sql_query(sql_query):
     return pd.read_sql_query(sql_query, con=os.getenv('RSR_SVC_CONN')) 
 
-
-def get_market_status():
+def get_market_status(csid=None, 
+                        period=None, 
+                        lma_status=None, 
+                        collection_set=None,
+                        collection_is_reportable=None, 
+                        collection_area=None, 
+                        country_id=None,
+                        collection_type_id=None,
+                        collection_set_status_id=None,
+                        product_period_id=None):
     market_status = f'''
-    SELECT *
+    SELECT
+        collection_set_id,
+        collection_set,
+        collection_is_reportable,
+        product_period,
+        product_period_id,
+        collection_area,
+        collection_set_status_id,
+        collection_type_id,
+        country_id,
+        lma_status,
+        last_status_time
     FROM auto.vi_collection_status_reporting
-    WHERE collection_set_status_id = 20
-    AND product_period = '{period}'
-    AND collection_is_reportable = True
-    AND collection_type_id = 1;
+    WHERE 1=1
     '''
-    df_market_status = run_sql_query(market_status)
+
+    if csid is not None:
+        market_status += f" AND collection_set_id = {csid}"
+    if period is not None:
+        market_status += f" AND product_period = '{period}'"
+    if lma_status is not None:
+        market_status += f" AND lma_status = '{lma_status}'"
+    if collection_set is not None:
+        market_status += f" AND collection_set = '{collection_set}'"
+    if collection_area is not None:
+        market_status += f" AND collection_area = '{collection_area}'"
+    if country_id is not None:
+        market_status += f" AND country_id = {country_id}"
+    if collection_type_id is not None:
+        market_status += f" AND collection_type_id = {collection_type_id}"
+    if collection_set_status_id is not None:
+        market_status += f" AND collection_set_status_id = {collection_set_status_id}"
+    if product_period_id is not None:
+        market_status += f" AND product_period_id = {product_period_id}"
+    # if collection_is_reportable is True:
+    #     market_status += f" AND collection_is_reportable = True"
+    # elif collection_is_reportable is False:
+    #     market_status += " AND collection_is_reportable = '{}'"
+    
+    
+
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.width', None) 
+
+    df_market_status = pd.read_sql_query(market_status, con=os.getenv('RSR_SVC_CONN'))
+    print("Running SQL query:")
+    print(df_market_status)
+
+    if csid or collection_set:
+        df_transposed_status = df_market_status.T.reset_index()
+        print(df_transposed_status)
+    else:
+        print(df_market_status)
+
+    print(f"Query returned {len(df_market_status)} rows.")
     return df_market_status
 
-df_market_status = get_market_status()
+
+
+# def get_market_status():
+#     market_status = f'''
+#     SELECT *
+#     FROM auto.vi_collection_status_reporting
+#     WHERE collection_set_status_id = 20
+#     AND product_period = '{period}'
+#     AND collection_is_reportable = True
+#     AND collection_type_id = 1;
+#     '''
+#     df_market_status = run_sql_query(market_status)
+#     return df_market_status
+
+# df_market_status = get_market_status()
 
 def initialize_all_markets(df_market_status):
     """
@@ -81,10 +151,11 @@ def initialize_all_markets(df_market_status):
         save_json(remaining_markets, REMAINING_MARKETS_FILE)
 
 
-def process_sent_emails(df_market_status):
+def process_sent_emails(df_market_status, csid=None):
     """
     Process the DataFrame to send emails and update the remaining markets JSON file.
     """
+
     remaining_markets = load_json(REMAINING_MARKETS_FILE)
     present = datetime.combine(date.today(), datetime.min.time())
     email_counter = 0
@@ -108,6 +179,7 @@ def process_sent_emails(df_market_status):
                 del remaining_markets[csid]  
                 save_json(remaining_markets, REMAINING_MARKETS_FILE)  
                 email_counter += 1
+
         else:
             print(f"Email already sent for CSID: {csid}, Collection Set Name: {collection_set_name}.")
 
@@ -190,5 +262,50 @@ def send_email(csid, collection_set_name, url_market_name, image_test):
         print(f"Failed to send email: {e}")
 
 if __name__ == "__main__":
+    
+    parser = argparse.ArgumentParser(description="Process market emails.")
+    parser.add_argument("--csid", type=int, help="The collection set ID to process.")
+    parser.add_argument("--period", type=str, default="2025-1H", help="The period for which to process markets.")
+    parser.add_argument("-r", "--reportable",action="store_true", help="Check if market is reportable.")
+    parser.add_argument("-status", "--lma_status", type=str, help="Market status to process" )
+    parser.add_argument("--collection_set", type=str, help="Collection set to process")
+    parser.add_argument("--collection_area", type=str, help="Collection area to process")
+    parser.add_argument("--country_id", type=int, help="Country ID to filter markets")
+    parser.add_argument("--collection_type_id", default= 1, type=int, help="Collection type ID to filter markets")
+    parser.add_argument("--collection_set_status_id", default= 20, type=int, help="Collection set status ID to filter markets")
+    parser.add_argument("--product_period_id", type=int, help="Product period ID to filter markets")
+
+    args = parser.parse_args()
+
+    csid = args.csid
+    period = args.period
+    lma_status = args.lma_status
+    collection_set = args.collection_set
+    collection_area = args.collection_area
+    country_id = args.country_id
+    collection_type_id = args.collection_type_id
+    collection_set_status_id = args.collection_set_status_id
+    product_period_id = args.product_period_id
+    reportable = args.reportable
+ 
+
+
+    df_market_status = get_market_status(csid=csid, 
+                                             period=period, 
+                                             lma_status=lma_status, 
+                                             collection_set=collection_set, 
+                                             collection_area=collection_area,
+                                             country_id=country_id,
+                                             collection_type_id=collection_type_id,
+                                             collection_set_status_id=collection_set_status_id,
+                                             product_period_id=product_period_id,
+                                             collection_is_reportable=reportable)
+
+
     initialize_all_markets(df_market_status)
-    process_sent_emails(df_market_status)
+    process_sent_emails(df_market_status, csid=csid)
+
+    print("All markets processed.")
+
+
+
