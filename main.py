@@ -6,10 +6,13 @@ import smtplib
 
 from datetime import date, datetime
 from dotenv import load_dotenv
+from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from jinja2 import Template
 from utils import make_image_market_test
+
+
 
 load_dotenv()
 
@@ -111,7 +114,7 @@ def get_market_status(csid=None,
 
     df_market_status = pd.read_sql_query(market_status, con=os.getenv('RSR_SVC_CONN'))
     print("Running SQL query:")
-    print(df_market_status)
+    # print(df_market_status)
 
     if csid or collection_set:
         df_transposed_status = df_market_status.T.reset_index()
@@ -121,7 +124,6 @@ def get_market_status(csid=None,
 
     print(f"Query returned {len(df_market_status)} rows.")
     return df_market_status
-
 
 
 # def get_market_status():
@@ -185,6 +187,21 @@ def process_sent_emails(df_market_status, csid=None):
 
 
 def send_email(csid, collection_set_name, url_market_name, image_test):
+    images_folder = "images"
+
+    image_files = [
+        "overall_rank.png",
+        "reliability_rank.png",
+        "responsiveness_rank.png",
+        "speed_rank.png",
+        "data_rank.png",
+        "call_rank.png",
+        "text_rank.png",
+        "video_rank.png",
+    ]
+
+    image_ordem = [f"image{i+1}" for i in range(len(image_files))]
+
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -209,6 +226,9 @@ def send_email(csid, collection_set_name, url_market_name, image_test):
             <br>
             <br>
             <p> You can check an image test bellow: </p>
+            <img src="cid:{{ image_ordem[0] }}" alt="Graph" class="img-fluid" style="max-width: 100%; height: auto;">
+            <img src="cid:{{ image_ordem[0] }}" alt="Graph" class="img-fluid" style="max-width: 100%; height: auto;">
+            <img src="images/market_test.png" alt="Market Report Test" style="width:600px;height:auto;"><br>
             <img src="{{image_test}}" alt="Market Test Image" style="width:600px;height:auto;"><br>
             <br>
             Best Regards,<br>
@@ -225,6 +245,7 @@ def send_email(csid, collection_set_name, url_market_name, image_test):
     rendered_html = template.render(
         collection_set_name=collection_set_name,
         url_market_name=url_market_name,
+        image_cids=image_ordem,
         image_test=image_test
     )
 
@@ -250,6 +271,18 @@ def send_email(csid, collection_set_name, url_market_name, image_test):
     msg.attach(msg_alternative)
 
     msg.attach(MIMEText(rendered_html, 'html'))
+
+    # Attach images in the order specified in the HTML template
+    for i, image_file in enumerate(image_files):
+        image_path = os.path.join(images_folder, image_file)
+        try:
+            with open(image_path, "rb") as img:
+                mime_image = MIMEImage(img.read())
+                mime_image.add_header("Content-ID", f"<{image_ordem[i]}>")  # Reference in HTML
+                mime_image.add_header("Content-Disposition", "inline", filename=image_file)
+                msg.attach(mime_image)
+        except FileNotFoundError:
+            print(f"Image file not found: {image_path}")
 
     try:
         # Connect to the SMTP server
